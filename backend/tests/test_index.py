@@ -1,3 +1,5 @@
+import math
+
 import pytest
 
 from searchengine.index import InvertedIndex
@@ -73,6 +75,24 @@ def test_adding_same_document_id_twice_is_rejected():
         index.add_document(1, tokenize("second"))
     # the failed add left nothing behind
     assert index.postings("second") == {}
+
+
+def test_document_norm_is_the_l2_norm_of_log_term_weights():
+    index = build("cat cat dog")  # cat: tf 2, dog: tf 1
+    cat_weight = 1.0 + math.log10(2)
+    dog_weight = 1.0 + math.log10(1)
+    expected = math.sqrt(cat_weight**2 + dog_weight**2)
+    assert index.document_norm(0) == pytest.approx(expected)
+    assert index.document_norm(99) == 0.0
+
+
+def test_document_norm_recomputes_after_a_new_document():
+    index = InvertedIndex()
+    index.add_document(0, tokenize("alpha"))
+    first = index.document_norm(0)
+    index.add_document(1, tokenize("alpha alpha alpha"))
+    assert index.document_norm(0) == pytest.approx(first)
+    assert index.document_norm(1) == pytest.approx(1.0 + math.log10(3))
 
 
 def test_accepts_raw_tokens():
