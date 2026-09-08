@@ -1,0 +1,20 @@
+[project]
+name = "searchengine"
+version = "0.1.0"
+description = "From-scratch full-text search engine with a REST API"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "pydantic>=2.10",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "httpx>=0.28", "pyarrow>=18.0"]
+
+[tool.setuptools.packages.find]
+include = ["searchengine*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
