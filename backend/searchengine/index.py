@@ -1,35 +1,87 @@
 """In-memory inverted index.
 
-Maps each term to a postings list of document IDs, with the term frequency and the
-list of positions within each document. Also tracks per-document lengths and
-per-term document frequencies for ranking.
+Maps each term to a postings list: for every document that contains the term, the
+list of positions where it occurs. The term frequency in a document is simply the
+length of its position list. The index also tracks per-document lengths and the set
+of indexed document IDs, which ranking and the stats endpoint build on.
+
+The structures are plain dicts and are never persisted; the index is rebuilt from the
+document collection on startup.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterable, KeysView
+
 from searchengine.tokenizer import Token
+
+Postings = dict[int, list[int]]
 
 
 class InvertedIndex:
     def __init__(self) -> None:
-        raise NotImplementedError
+        self._postings: dict[str, Postings] = {}
+        self._doc_lengths: dict[int, int] = {}
 
-    def add_document(self, doc_id: int, tokens: list[Token]) -> None:
-        raise NotImplementedError
+    def add_document(self, doc_id: int, tokens: Iterable[Token]) -> None:
+        """Add a document's tokens to the index.
 
-    def postings(self, term: str) -> dict[int, list[int]]:
-        raise NotImplementedError
+        Raises ``ValueError`` if ``doc_id`` was already indexed; documents are
+        immutable once added.
+        """
+        if doc_id in self._doc_lengths:
+            raise ValueError(f"document {doc_id} is already indexed")
+
+        length = 0
+        for token in tokens:
+            length += 1
+            term_postings = self._postings.setdefault(token.term, {})
+            term_postings.setdefault(doc_id, []).append(token.position)
+        self._doc_lengths[doc_id] = length
+
+    def postings(self, term: str) -> Postings:
+        """Return ``{doc_id: [positions]}`` for ``term`` (empty if unknown).
+
+        The returned dict is the index's own storage; callers must not mutate it.
+        """
+        return self._postings.get(term, {})
 
     def document_frequency(self, term: str) -> int:
-        raise NotImplementedError
+        """Number of documents containing ``term``."""
+        return len(self._postings.get(term, {}))
+
+    def term_frequency(self, term: str, doc_id: int) -> int:
+        """Number of occurrences of ``term`` in ``doc_id``."""
+        return len(self._postings.get(term, {}).get(doc_id, ()))
 
     def doc_length(self, doc_id: int) -> int:
-        raise NotImplementedError
+        """Token count of ``doc_id`` (0 if unknown)."""
+        return self._doc_lengths.get(doc_id, 0)
+
+    def has_document(self, doc_id: int) -> bool:
+        return doc_id in self._doc_lengths
+
+    def terms(self) -> KeysView[str]:
+        return self._postings.keys()
+
+    def document_ids(self) -> KeysView[int]:
+        return self._doc_lengths.keys()
 
     @property
     def document_count(self) -> int:
-        raise NotImplementedError
+        return len(self._doc_lengths)
 
     @property
     def vocabulary_size(self) -> int:
-        raise NotImplementedError
+        return len(self._postings)
+
+    @property
+    def total_postings(self) -> int:
+        """Total number of (term, document) pairs in the index."""
+        return sum(len(docs) for docs in self._postings.values())
+
+    @property
+    def average_doc_length(self) -> float:
+        if not self._doc_lengths:
+            return 0.0
+        return sum(self._doc_lengths.values()) / len(self._doc_lengths)
