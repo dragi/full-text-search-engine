@@ -2,12 +2,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from searchengine import api
-from searchengine.engine import SearchEngine
 
 
 @pytest.fixture
 def client():
-    api.app.state.engine = SearchEngine()
+    # Entering the TestClient context runs the lifespan, which builds a fresh
+    # (empty, since SKIP_CORPUS=1) engine for each test.
     with TestClient(api.app) as test_client:
         yield test_client
 
