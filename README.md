@@ -4,12 +4,9 @@ A small information-retrieval engine built from scratch in Python: a tokenizer, 
 in-memory inverted index, and TF-IDF ranking, exposed through a FastAPI REST API with
 a React search demo pre-loaded with a Simple English Wikipedia subset.
 
-## Layout
+## Demo
 
-```
-backend/    FastAPI app and the search engine (tokenizer, index, ranking, snippets)
-frontend/   React (Vite) search page
-```
+The backend runs on Render's free plan and sleeps when idle, so the first search 
+after a while can take a minute or two to cold start.
 
-Build and run instructions, example API calls, and the live demo link will land here
-as the project fills in.
+https://dragi-search-engine.vercel.app/
